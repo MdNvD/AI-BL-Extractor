@@ -1,0 +1,42 @@
+.header-card{
+    max-width:1200px;
+    margin:30px auto;
+    padding:30px;
+    background:#fff;
+    border-radius:18px;
+    box-shadow:0 8px 20px rgba(0,0,0,.08);
+}
+
+.header-card h2{
+    margin-bottom:25px;
+    color:#1e293b;
+    font-size:28px;
+}
+
+.header-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(330px,1fr));
+    gap:18px;
+}
+
+.header-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    padding:15px 18px;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    background:#f8fafc;
+}
+
+.label{
+    font-weight:700;
+    color:#475569;
+}
+
+.value{
+    color:#0f172a;
+    text-align:right;
+    max-width:55%;
+    word-break:break-word;
+}

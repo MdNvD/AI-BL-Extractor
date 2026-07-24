@@ -1,0 +1,10 @@
+Extract shipment totals.
+
+Return ONLY valid JSON.
+
+{
+  "total_containers":0,
+  "total_cartons":0,
+  "total_weight":0,
+  "total_cbm":0
+}

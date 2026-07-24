@@ -1,0 +1,27 @@
+# Python
+venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+.env
+
+# Generated files
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+backend/output/*
+!backend/output/.gitkeep
+
+backend/logs/*
+!backend/logs/.gitkeep
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

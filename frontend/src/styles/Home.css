@@ -1,0 +1,9 @@
+.home {
+    max-width: 1400px;
+    margin: auto;
+    padding: 40px 25px;
+}
+
+.home > * {
+    margin-bottom: 35px;
+}
