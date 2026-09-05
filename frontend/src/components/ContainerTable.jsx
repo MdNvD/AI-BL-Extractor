@@ -44,17 +44,29 @@ export default function ContainerTable({ containers }) {
 
                                 <td>{index + 1}</td>
 
-                                <td>{container.container_number}</td>
+                                <td>
+                                    {container.container_number || "-"}
+                                </td>
 
-                                <td>{container.seal_number}</td>
+                                <td>
+                                    {container.seal_number || "-"}
+                                </td>
 
-                                <td>{container.size}</td>
+                                <td>
+                                    {container.size || "-"}
+                                </td>
 
-                                <td>{container.cartons}</td>
+                                <td>
+                                    {container.cartons ?? "-"}
+                                </td>
 
-                                <td>{container.weight_kg}</td>
+                                <td>
+                                    {container.weight_kg ?? "-"}
+                                </td>
 
-                                <td>{container.cbm}</td>
+                                <td>
+                                    {container.cbm ?? "-"}
+                                </td>
 
                             </tr>
 

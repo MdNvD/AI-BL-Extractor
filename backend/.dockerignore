@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.env
+
+uploads/*
+output/*
+logs/*
+
+.git/
+.gitignore
+
+tests/
+*.xlsx
+*.pdf

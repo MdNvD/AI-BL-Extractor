@@ -8,31 +8,90 @@ load_dotenv()
 # Project root (backend/)
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-APP_NAME = os.getenv("APP_NAME")
-APP_VERSION = os.getenv("APP_VERSION")
+APP_NAME = os.getenv(
+    "APP_NAME",
+    "AI Bill of Lading Extractor"
+)
 
-HOST = os.getenv("HOST")
-PORT = int(os.getenv("PORT"))
+APP_VERSION = os.getenv(
+    "APP_VERSION",
+    "1.0.0"
+)
 
-UPLOAD_DIR = BASE_DIR / os.getenv("UPLOAD_DIR")
-OUTPUT_DIR = BASE_DIR / os.getenv("OUTPUT_DIR")
-LOG_DIR = BASE_DIR / os.getenv("LOG_DIR")
+HOST = os.getenv(
+    "HOST",
+    "0.0.0.0"
+)
 
-TESSERACT_PATH = os.getenv("TESSERACT_PATH")
-POPPLER_PATH = os.getenv("POPPLER_PATH")
+PORT = int(
+    os.getenv("PORT", "8000")
+)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+UPLOAD_DIR = BASE_DIR / os.getenv(
+    "UPLOAD_DIR",
+    "uploads"
+)
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
+OUTPUT_DIR = BASE_DIR / os.getenv(
+    "OUTPUT_DIR",
+    "output"
+)
+
+LOG_DIR = BASE_DIR / os.getenv(
+    "LOG_DIR",
+    "logs"
+)
+
+# OCR configuration
+TESSERACT_PATH = os.getenv(
+    "TESSERACT_PATH",
+    ""
+)
+
+POPPLER_PATH = os.getenv(
+    "POPPLER_PATH",
+    ""
+)
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///bl_extractor.db"
+)
+
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "change-this-secret-key"
+)
+
+ALGORITHM = os.getenv(
+    "ALGORITHM",
+    "HS256"
+)
+
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+    os.getenv(
+        "ACCESS_TOKEN_EXPIRE_MINUTES",
+        "30"
+    )
 )
 
 # Gemini API Key
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv(
+    "GEMINI_API_KEY"
+)
 
 # Create required folders automatically
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
-LOG_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+OUTPUT_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+LOG_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)

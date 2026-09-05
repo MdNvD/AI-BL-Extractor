@@ -8,137 +8,578 @@ from app.extractor.text_extractor import TextExtractor
 from app.extractor.excel_writer import ExcelExporter
 from app.services.gemini_service import GeminiService
 
-router = APIRouter(tags=["Bill of Lading"])
+
+router = APIRouter(
+    tags=["Bill of Lading"]
+)
 
 
-@router.get("/bl-extract/{filename}")
-def extract_bill_of_lading(filename: str):
+# ======================================================
+# Bill of Lading Extraction
+# ======================================================
 
-    pdf_path = UPLOAD_DIR / filename
+@router.get(
+    "/bl-extract/{filename}"
+)
+def extract_bill_of_lading(
+    filename: str
+):
 
-    print("\n========== FILE DEBUG ==========")
-    print("UPLOAD_DIR :", UPLOAD_DIR)
-    print("Filename   :", filename)
-    print("PDF Path   :", pdf_path)
-    print("Exists     :", pdf_path.exists())
+    pdf_path = (
+        UPLOAD_DIR /
+        filename
+    )
 
-    if UPLOAD_DIR.exists():
-        print("\nFiles inside upload folder:")
-        for f in UPLOAD_DIR.iterdir():
-            print(" -", f.name)
+    # ==================================================
+    # File Validation
+    # ==================================================
 
-    print("================================\n")
+    print(
+        "\n========== FILE DEBUG =========="
+    )
+
+    print(
+        "UPLOAD_DIR :",
+        UPLOAD_DIR
+    )
+
+    print(
+        "Filename   :",
+        filename
+    )
+
+    print(
+        "PDF Path   :",
+        pdf_path
+    )
+
+    print(
+        "Exists     :",
+        pdf_path.exists()
+    )
+
+    print(
+        "================================\n"
+    )
 
     if not pdf_path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="PDF not found."
         )
 
-    # -----------------------------------
-    # OCR Extraction
-    # -----------------------------------
+    if pdf_path.suffix.lower() != ".pdf":
 
-    extractor = TextExtractor(str(pdf_path))
-    pages = extractor.extract()
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are supported."
+        )
 
-    print(f"Total Pages Extracted : {len(pages)}")
+    # ==================================================
+    # PDF / OCR Extraction
+    # ==================================================
 
-    header_text = pages[0]["text"] if len(pages) > 0 else ""
-    container_text = pages[1]["text"] if len(pages) > 1 else ""
-    summary_text = pages[2]["text"] if len(pages) > 2 else ""
+    try:
 
-    print("\n========== PAGE 1 ==========")
-    print(header_text[:1000])
+        extractor = TextExtractor(
+            str(pdf_path)
+        )
 
-    print("\n========== PAGE 2 ==========")
-    print(container_text[:1000])
+        pages = extractor.extract()
 
-    print("\n========== PAGE 3 ==========")
-    print(summary_text[:1000])
+    except Exception as e:
 
-    # -----------------------------------
-    # Gemini Extraction
-    # -----------------------------------
+        print(
+            "Document extraction failed:",
+            e
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Unable to extract text "
+                "from PDF."
+            )
+        )
+
+    print(
+        f"Total Pages Extracted : "
+        f"{len(pages)}"
+    )
+
+    if not pages:
+
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "No pages could be "
+                "extracted from the PDF."
+            )
+        )
+
+    # ==================================================
+    # Combine ALL Pages
+    # ==================================================
+
+    document_parts = []
+
+    for page in pages:
+
+        page_number = page.get(
+            "page"
+        )
+
+        page_text = page.get(
+            "text",
+            ""
+        )
+
+        document_parts.append(
+            f"""
+==================================================
+PAGE {page_number}
+==================================================
+
+{page_text}
+"""
+        )
+
+    document_text = "\n".join(
+        document_parts
+    )
+
+    # ==================================================
+    # Document Information
+    # ==================================================
+
+    print(
+        "\n========== DOCUMENT INFORMATION =========="
+    )
+
+    print(
+        "Total pages :",
+        len(pages)
+    )
+
+    print(
+        "Combined document characters :",
+        len(document_text)
+    )
+
+    print(
+        "=========================================="
+    )
+
+    # ==================================================
+    # Page Debug
+    # ==================================================
+
+    for page in pages:
+
+        print(
+            f"\n========== PAGE "
+            f"{page['page']} PREVIEW =========="
+        )
+
+        print(
+            page.get(
+                "text",
+                ""
+            )[:1500]
+        )
+
+    # ==================================================
+    # Gemini
+    # ==================================================
 
     gemini = GeminiService()
 
-    header = gemini.extract_header(header_text)
-    containers = gemini.extract_containers(container_text)
-    summary = gemini.extract_summary(summary_text)
-
-    # -----------------------------------
-    # Debug Output
-    # -----------------------------------
-
-    print("\n========== HEADER ==========")
-
-    for key, value in header.items():
-        print(f"{key} : {value}")
-
-    print("============================")
-
-    print("\n========== CONTAINERS ==========")
-    print(f"Total Containers Extracted : {len(containers.get('containers', []))}")
-    print("===============================")
-
-    print("\n========== SUMMARY ==========")
-
-    for key, value in summary.items():
-        print(f"{key} : {value}")
-
-    print("=============================")
-
-    # -----------------------------------
-    # Recalculate total containers
-    # -----------------------------------
-
-    summary["total_containers"] = len(
-        containers.get("containers", [])
+    print(
+        "\n========== GEMINI EXTRACTION =========="
     )
 
-    # -----------------------------------
-    # Final JSON
-    # -----------------------------------
+    try:
+
+        # ----------------------------------------------
+        # Header
+        # ----------------------------------------------
+
+        header = gemini.extract_header(
+            document_text
+        )
+
+        # ----------------------------------------------
+        # Containers
+        # ----------------------------------------------
+
+        containers = (
+            gemini.extract_containers(
+                document_text
+            )
+        )
+
+        # ----------------------------------------------
+        # Document totals
+        #
+        # Extract document-level totals from the
+        # complete document text.
+        # ----------------------------------------------
+
+        summary = (
+            gemini.extract_document_totals(
+                document_text
+            )
+        )
+
+        # ----------------------------------------------
+        # Local validation
+        # ----------------------------------------------
+
+        validated_containers = (
+            gemini.validate_containers(
+                containers,
+                summary
+            )
+        )
+
+    except Exception as e:
+
+        print(
+            "\n========== GEMINI ERROR =========="
+        )
+
+        print(
+            e
+        )
+
+        print(
+            "=================================="
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "AI extraction service is "
+                "temporarily unavailable."
+            )
+        )
+
+    # ==================================================
+    # Extract validated containers
+    # ==================================================
+
+    container_list = (
+        validated_containers.get(
+            "containers",
+            []
+        )
+    )
+
+    validation = (
+        validated_containers.get(
+            "validation",
+            {}
+        )
+    )
+
+    # ==================================================
+    # Header Debug
+    # ==================================================
+
+    print(
+        "\n========== HEADER =========="
+    )
+
+    for key, value in header.items():
+
+        print(
+            f"{key} : {value}"
+        )
+
+    print(
+        "============================"
+    )
+
+    # ==================================================
+    # Container Debug
+    # ==================================================
+
+    print(
+        "\n========== CONTAINERS =========="
+    )
+
+    print(
+        "Total Containers Extracted :",
+        len(container_list)
+    )
+
+    for index, container in enumerate(
+        container_list,
+        start=1
+    ):
+
+        print(
+            f"\nContainer {index}:"
+        )
+
+        print(
+            "  Number :",
+            container.get(
+                "container_number"
+            )
+        )
+
+        print(
+            "  Seal   :",
+            container.get(
+                "seal_number"
+            )
+        )
+
+        print(
+            "  Size   :",
+            container.get(
+                "size"
+            )
+        )
+
+        print(
+            "  Cartons:",
+            container.get(
+                "cartons"
+            )
+        )
+
+        print(
+            "  Weight :",
+            container.get(
+                "weight_kg"
+            )
+        )
+
+        print(
+            "  CBM    :",
+            container.get(
+                "cbm"
+            )
+        )
+
+    print(
+        "================================"
+    )
+
+    # ==================================================
+    # Summary Debug
+    # ==================================================
+
+    print(
+        "\n========== SUMMARY =========="
+    )
+
+    for key, value in summary.items():
+
+        print(
+            f"{key} : {value}"
+        )
+
+    print(
+        "============================="
+    )
+
+    # ==================================================
+    # Validation Debug
+    # ==================================================
+
+    print(
+        "\n========== VALIDATION =========="
+    )
+
+    print(
+        "Status :",
+        validation.get(
+            "status"
+        )
+    )
+
+    print(
+        "Container Count :",
+        validation.get(
+            "container_count",
+            {}
+        ).get(
+            "status"
+        )
+    )
+
+    print(
+        "Cartons :",
+        validation.get(
+            "cartons",
+            {}
+        ).get(
+            "status"
+        )
+    )
+
+    print(
+        "Weight :",
+        validation.get(
+            "weight_kg",
+            {}
+        ).get(
+            "status"
+        )
+    )
+
+    print(
+        "CBM :",
+        validation.get(
+            "cbm",
+            {}
+        ).get(
+            "status"
+        )
+    )
+
+    print(
+        "Duplicates :",
+        validation.get(
+            "duplicate_container_numbers",
+            []
+        )
+    )
+
+    print(
+        "Invalid Container Numbers :",
+        validation.get(
+            "invalid_container_numbers",
+            []
+        )
+    )
+
+    print(
+        "Missing Fields :",
+        validation.get(
+            "missing_fields",
+            []
+        )
+    )
+
+    print(
+        "================================"
+    )
+
+    # ==================================================
+    # Final Result
+    # ==================================================
 
     result = {
-        "header": header,
-        "containers": containers,
-        "summary": summary
+
+        "header":
+            header,
+
+        "containers":
+            {
+                "containers":
+                    container_list,
+
+                "validation":
+                    validation
+            },
+
+        "summary":
+            summary
     }
 
-    # -----------------------------------
+    # ==================================================
     # Save Excel
-    # -----------------------------------
+    # ==================================================
 
-    output_dir = Path("output/excel")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(
+        "output/excel"
+    )
 
-    excel_path = output_dir / f"{pdf_path.stem}.xlsx"
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
-    exporter = ExcelExporter()
-    exporter.export(result, str(excel_path))
+    excel_path = (
+        output_dir /
+        f"{pdf_path.stem}.xlsx"
+    )
 
-    print("\nExcel Saved :", excel_path)
+    try:
 
-    # -----------------------------------
-    # Return Response
-    # -----------------------------------
+        exporter = ExcelExporter()
+
+        exporter.export(
+            result,
+            str(excel_path)
+        )
+
+    except Exception as e:
+
+        print(
+            "Excel export failed:",
+            e
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Unable to create "
+                "Excel file."
+            )
+        )
+
+    print(
+        "\nExcel Saved :",
+        excel_path
+    )
+
+    # ==================================================
+    # Response
+    # ==================================================
 
     return {
-        "message": "Bill of Lading extracted successfully.",
-        "excel_file": excel_path.name,
-        "download_url": f"/api/download-excel/{excel_path.name}",
-        "data": result
+
+        "message":
+            "Bill of Lading extracted successfully.",
+
+        "excel_file":
+            excel_path.name,
+
+        "download_url":
+            (
+                f"/api/download-excel/"
+                f"{excel_path.name}"
+            ),
+
+        "data":
+            result
     }
 
 
-@router.get("/download-excel/{filename}")
-def download_excel(filename: str):
+# ======================================================
+# Excel Download
+# ======================================================
 
-    excel_path = Path("output/excel") / filename
+@router.get(
+    "/download-excel/{filename}"
+)
+def download_excel(
+    filename: str
+):
+
+    excel_path = (
+        Path("output/excel") /
+        filename
+    )
 
     if not excel_path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="Excel file not found."
@@ -147,5 +588,8 @@ def download_excel(filename: str):
     return FileResponse(
         path=excel_path,
         filename=filename,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        )
     )

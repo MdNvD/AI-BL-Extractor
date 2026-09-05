@@ -15,6 +15,17 @@ export default function Home() {
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    const data = result?.data;
+
+    const header = data?.header || null;
+
+    const containers =
+        data?.containers?.containers || [];
+
+    const summary = data?.summary || null;
+
+    const excelFile = result?.excel_file || null;
+
     return (
 
         <>
@@ -33,20 +44,20 @@ export default function Home() {
 
                     <>
                         <HeaderCard
-                            header={result.data.header}
+                            header={header}
                         />
 
                         <ContainerTable
-                            containers={result.data.containers.containers}
+                            containers={containers}
                         />
 
                         <SummaryCard
-                            summary={result.data.summary}
+                            summary={summary}
                         />
 
                         <DownloadButtons
-                            excelFile={result.excel_file}
-                            data={result.data}
+                            excelFile={excelFile}
+                            data={data}
                         />
                     </>
 
@@ -58,5 +69,4 @@ export default function Home() {
         </>
 
     );
-
 }

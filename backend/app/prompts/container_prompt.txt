@@ -1,26 +1,331 @@
-You are an expert Bill of Lading parser.
+You are an expert Bill of Lading container and cargo-table extraction system.
 
-Extract every container from the document.
+Your task is to extract EVERY distinct physical container record explicitly present anywhere in the COMPLETE Bill of Lading document.
 
-Rules:
-- Return ONLY valid JSON.
-- Do not include markdown.
-- Do not explain anything.
-- Do not guess values.
-- One JSON object per container.
-- Extract the CBM value shown for each container. If a CBM value is present, return it as a number. Only return null if the document truly does not contain a CBM value for that container.
+The document may come from ANY:
 
-Return this structure:
+- shipping line
+- carrier
+- freight forwarder
+- logistics company
+
+Do NOT assume a specific carrier.
+
+Do NOT assume a fixed page.
+
+Do NOT assume a fixed table layout.
+
+==================================================
+OUTPUT
+==================================================
+
+Return ONLY:
 
 {
   "containers": [
     {
-      "container_number": "",
-      "seal_number": "",
-      "size": "",
-      "cartons": 0,
-      "weight_kg": 0,
-      "cbm": 0.0
+      "container_number": null,
+      "seal_number": null,
+      "size": null,
+      "cartons": null,
+      "weight_kg": null,
+      "cbm": null
     }
   ]
 }
+
+==================================================
+EXAMINE EVERY PAGE
+==================================================
+
+Read the complete document.
+
+The container table may:
+
+- start on page 1
+- start on page 2
+- continue onto later pages
+- span multiple pages
+- contain repeated headers
+- use different column orders
+- appear as a separate attached list
+
+Extract every physical container.
+
+==================================================
+FIELDS
+==================================================
+
+container_number
+
+Possible labels:
+
+- Container No.
+- Container Number
+- Container #
+- Container ID
+- Equipment No.
+- Equipment Number
+- Equipment ID
+- CNTR No.
+- CNTR Number
+- Unit No.
+- Unit Number
+
+==================================================
+
+seal_number
+
+Possible labels:
+
+- Seal No.
+- Seal Number
+- Seal
+- Seal ID
+- Seal #
+- Container Seal
+- Customs Seal
+
+==================================================
+
+size
+
+Possible labels:
+
+- Size
+- Container Size
+- Type
+- Container Type
+- Equipment Type
+- ISO Type
+- ISO Code
+- Equipment Size
+- Size/Type
+
+Examples:
+
+40'RT
+
+40RF
+
+40HC
+
+20GP
+
+Preserve the document value.
+
+==================================================
+
+cartons
+==================================================
+
+Possible labels:
+
+- Cartons
+- Packages
+- Pkgs
+- Package
+- Package Count
+- Quantity
+- Qty
+- No. of Packages
+- Number of Packages
+- Pieces
+- CTNS
+- PKGS
+
+Extract the value belonging to the individual container.
+
+NEVER use shipment-level totals as the container's carton count.
+
+==================================================
+
+weight_kg
+==================================================
+
+Possible labels:
+
+- Weight
+- Gross Weight
+- Gross Wt.
+- Gross Mass
+- Gross
+- Weight (KG)
+- Weight (KGS)
+- KGM
+- KG
+
+Extract the individual container's weight.
+
+NEVER use the shipment total as the container weight.
+
+==================================================
+
+cbm
+==================================================
+
+Possible labels:
+
+- CBM
+- Measurement
+- Measure
+- Volume
+- Measurement (CBM)
+- M3
+- m³
+- Cubic Meter
+- Cubic Metres
+- Cube
+
+Extract CBM only when explicitly associated with that container.
+
+For example:
+
+Container A | 32.40 CBM
+
+means:
+
+"cbm": 32.40
+
+Do NOT calculate CBM from:
+
+- container size
+- dimensions
+- averages
+- shipment totals
+- number of containers
+
+If individual CBM is not explicitly available:
+
+"cbm": null
+
+==================================================
+SHIPMENT TOTALS
+==================================================
+
+The document may contain:
+
+TOTAL Q'TY
+6000 CARTONS
+
+TOTAL G.W.
+125000 KGS
+
+TOTAL MEASUREMENT
+162 CBM
+
+These are shipment-level totals.
+
+DO NOT copy them into individual container records.
+
+For example:
+
+WRONG:
+
+Container 1:
+cartons = 6000
+
+Container 1:
+weight_kg = 125000
+
+Container 1:
+cbm = 162
+
+CORRECT:
+
+Use only the values associated with that container.
+
+==================================================
+ROW ASSOCIATION
+==================================================
+
+Keep all values belonging to the same physical container together.
+
+For example:
+
+HLBU4821057
+SEAL HLC260701
+40'RF
+1200 CARTONS
+25000 KGM
+32.40 CBM
+
+must produce:
+
+{
+  "container_number": "HLBU4821057",
+  "seal_number": "HLC260701",
+  "size": "40'RF",
+  "cartons": 1200,
+  "weight_kg": 25000,
+  "cbm": 32.40
+}
+
+Do not mix values between rows.
+
+==================================================
+OCR
+==================================================
+
+OCR may split:
+
+HLBU
+4821057
+
+If the document clearly shows these belong together, reconstruct:
+
+HLBU4821057
+
+Likewise, OCR may split seal numbers.
+
+Use document structure to reconstruct them when evidence is clear.
+
+Do not guess.
+
+==================================================
+DUPLICATES
+==================================================
+
+The same container may appear multiple times.
+
+Return each physical container exactly once.
+
+Use container number as the primary duplicate identifier.
+
+==================================================
+MISSING VALUES
+==================================================
+
+If a field is genuinely missing:
+
+return null.
+
+Do NOT:
+
+- guess
+- calculate
+- average
+- copy another container's value
+- use shipment totals
+
+==================================================
+FINAL VALIDATION
+==================================================
+
+Before returning JSON:
+
+1. Check every page.
+2. Find every container.
+3. Do not stop at the first table.
+4. Do not omit continuation-page containers.
+5. Do not duplicate containers.
+6. Keep seal associated with the correct container.
+7. Keep size associated with the correct container.
+8. Keep cartons associated with the correct container.
+9. Keep weight associated with the correct container.
+10. Keep CBM associated with the correct container.
+11. Never copy shipment totals into container rows.
+12. Do not calculate missing values.
+13. Use null for genuinely missing values.
+
+Return ONLY valid JSON.
