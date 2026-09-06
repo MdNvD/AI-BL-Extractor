@@ -1,5 +1,7 @@
 import "../styles/DownloadButtons.css";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function DownloadButtons({ excelFile, data }) {
 
     if (!excelFile) return null;
@@ -27,7 +29,7 @@ export default function DownloadButtons({ excelFile, data }) {
     const downloadExcel = () => {
 
         window.open(
-            `http://127.0.0.1:8000/api/download-excel/${excelFile}`,
+            `${API_URL}/api/download-excel/${excelFile}`,
             "_blank"
         );
 

@@ -3,6 +3,8 @@ import { useState } from "react";
 import "../styles/Upload.css";
 import axios from "axios";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function Upload({ onSuccess, setLoading }) {
     const [file, setFile] = useState(null);
     const [message, setMessage] = useState("");
@@ -29,7 +31,7 @@ export default function Upload({ onSuccess, setLoading }) {
 
             // Upload PDF
             const uploadResponse = await axios.post(
-                "http://127.0.0.1:8000/api/upload",
+                `${API_URL}/api/upload`,
                 formData,
                 {
                     headers: {
@@ -58,7 +60,7 @@ export default function Upload({ onSuccess, setLoading }) {
 
             // Extract data
             const extractResponse = await axios.get(
-                `http://127.0.0.1:8000/api/bl-extract/${filename}`
+                `${API_URL}/api/bl-extract/${filename}`
             );
 
             console.log("Extract Response:", extractResponse.data);

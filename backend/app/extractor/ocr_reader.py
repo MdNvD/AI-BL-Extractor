@@ -29,6 +29,9 @@ class OCRReader:
 
     Before OCR, the scanned page is lightly preprocessed
     to improve recognition of small or faint text.
+
+    The image is kept at its original size to reduce
+    memory usage during deployment.
     """
 
     def __init__(self, pdf_path: str):
@@ -42,7 +45,7 @@ class OCRReader:
         1. Convert to grayscale
         2. Improve overall contrast
         3. Slightly enhance contrast
-        4. Upscale the image
+        4. Keep original image size
 
         The complete page is preserved.
         No cropping is performed because container,
@@ -69,14 +72,12 @@ class OCRReader:
         image = ImageEnhance.Contrast(image).enhance(1.2)
 
         # ----------------------------------------------
-        # Step 4: Upscale image
+        # Step 4: Keep original image size
         # ----------------------------------------------
 
-        width, height = image.size
-
-        image = image.resize(
-            (width * 2, height * 2)
-        )
+        # Do not upscale the image.
+        # Upscaling significantly increases memory usage
+        # and is unnecessary for the deployment environment.
 
         return image
 
@@ -180,6 +181,9 @@ class OCRReader:
 
         The entire page is passed to Tesseract so that
         table information remains together.
+
+        The page is converted at 250 DPI to reduce
+        memory usage during deployment.
         """
 
         # ----------------------------------------------
@@ -189,7 +193,7 @@ class OCRReader:
         conversion_options = {
             "first_page": page_number,
             "last_page": page_number,
-            "dpi": 400,
+            "dpi": 250,
         }
 
         # Use custom Poppler path only when configured.
@@ -207,77 +211,101 @@ class OCRReader:
             return ""
 
         image = images[0]
+        processed_image = None
 
-        # ----------------------------------------------
-        # Step 2: Preprocess image
-        # ----------------------------------------------
+        try:
 
-        processed_image = self._preprocess_image(image)
+            # ----------------------------------------------
+            # Step 2: Preprocess image
+            # ----------------------------------------------
 
-        # ----------------------------------------------
-        # Step 3: Primary OCR using PSM 6
-        # ----------------------------------------------
+            processed_image = self._preprocess_image(image)
 
-        primary_text = self._run_ocr(
-            processed_image,
-            psm=6
-        )
+            # ----------------------------------------------
+            # Step 3: Primary OCR using PSM 6
+            # ----------------------------------------------
 
-        print(
-            f"OCR PSM 6 characters on page "
-            f"{page_number}: {len(primary_text)}"
-        )
-
-        # ----------------------------------------------
-        # Step 4: Check whether fallback is needed
-        # ----------------------------------------------
-
-        if not self._needs_fallback(primary_text):
-
-            print(
-                f"OCR PSM 6 accepted on page "
-                f"{page_number}."
+            primary_text = self._run_ocr(
+                processed_image,
+                psm=6
             )
 
-            return primary_text
-
-        # ----------------------------------------------
-        # Step 5: Fallback OCR using PSM 3
-        # ----------------------------------------------
-
-        print(
-            f"OCR PSM 6 appears incomplete on page "
-            f"{page_number}. Running PSM 3 fallback..."
-        )
-
-        fallback_text = self._run_ocr(
-            processed_image,
-            psm=3
-        )
-
-        print(
-            f"OCR PSM 3 characters on page "
-            f"{page_number}: {len(fallback_text)}"
-        )
-
-        # ----------------------------------------------
-        # Step 6: Select better OCR result
-        # ----------------------------------------------
-
-        selected_text = self._select_better_result(
-            primary_text,
-            fallback_text
-        )
-
-        if selected_text == fallback_text:
             print(
-                f"OCR PSM 3 selected for page "
-                f"{page_number}."
-            )
-        else:
-            print(
-                f"OCR PSM 6 retained for page "
-                f"{page_number}."
+                f"OCR PSM 6 characters on page "
+                f"{page_number}: {len(primary_text)}"
             )
 
-        return selected_text
+            # ----------------------------------------------
+            # Step 4: Check whether fallback is needed
+            # ----------------------------------------------
+
+            if not self._needs_fallback(primary_text):
+
+                print(
+                    f"OCR PSM 6 accepted on page "
+                    f"{page_number}."
+                )
+
+                return primary_text
+
+            # ----------------------------------------------
+            # Step 5: Fallback OCR using PSM 3
+            # ----------------------------------------------
+
+            print(
+                f"OCR PSM 6 appears incomplete on page "
+                f"{page_number}. Running PSM 3 fallback..."
+            )
+
+            fallback_text = self._run_ocr(
+                processed_image,
+                psm=3
+            )
+
+            print(
+                f"OCR PSM 3 characters on page "
+                f"{page_number}: {len(fallback_text)}"
+            )
+
+            # ----------------------------------------------
+            # Step 6: Select better OCR result
+            # ----------------------------------------------
+
+            selected_text = self._select_better_result(
+                primary_text,
+                fallback_text
+            )
+
+            if selected_text == fallback_text:
+                print(
+                    f"OCR PSM 3 selected for page "
+                    f"{page_number}."
+                )
+            else:
+                print(
+                    f"OCR PSM 6 retained for page "
+                    f"{page_number}."
+                )
+
+            return selected_text
+
+        finally:
+
+            # Explicitly release image memory after
+            # processing each page.
+            try:
+                if processed_image is not None:
+                    processed_image.close()
+            except Exception:
+                pass
+
+            try:
+                image.close()
+            except Exception:
+                pass
+
+            for img in images:
+                try:
+                    img.close()
+                except Exception:
+                    pass
